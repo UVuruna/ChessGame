@@ -9,6 +9,7 @@ from knight import Knight
 from pawn import Pawn
 from rook import Rook
 from AI import AI
+from computerAI import ComputerAI
 from transcript import Rewind
 import os
 
@@ -300,10 +301,10 @@ class Rendering():
     def borderColors(square):
         global enPassant,enPassant_objPos
         try:
-            Move,Take = CurrentTableDict[square].possibleMoves()[:2]
+            Move,Take = CurrentTableDict[square].possibleMoves(CurrentTableDict)[:2]
             if isinstance(Self,Pawn):
                 enPassant,enPassant_objPos = Rewind.EnPassant(TranscriptName)
-                if enPassant in Self.possibleMoves()[3]:
+                if enPassant in Self.possibleMoves(CurrentTableDict)[3]:
                     Take.append(enPassant)
         except (AttributeError,TypeError):
             None
@@ -313,22 +314,17 @@ class Rendering():
         for t in Take:
             Import.ButtonDict[t].config(background='#FF0000')
             Rendering.ButtonChanged.append(Import.ButtonDict[t])
-        c = Rendering.borderCheck(PossibleCheck)
-        if c !=None:
-            Import.ButtonDict[c].config(background='#FFFF00')
-            Rendering.ButtonChanged.append(Import.ButtonDict[c])
 
     def borderCheck(PossibleCheck):
         if PossibleCheck:
             Import.ButtonDict[PossibleCheck].config(background='#FFFF00')
             Rendering.ButtonChanged.append(Import.ButtonDict[PossibleCheck])
-            return PossibleCheck
 
     def borderCastling():
         global kW,qW,kB,qB
         try:
             if isinstance(Self,King):
-                squares,kW,qW,kB,qB = AI.CastlingCheck(Turn,Self)
+                squares,kW,qW,kB,qB = AI.CastlingCheck(Turn,CurrentTableDict,Self)
                 for v in squares:
                     Import.ButtonDict[v].config(background='#00AACC')
                     Rendering.ButtonChanged.append(Import.ButtonDict[v])
@@ -396,6 +392,7 @@ class Actions():
             if isinstance(CurrentTableDict[xy],Chess):
                 Self = CurrentTableDict[xy]
                 Rendering.borderDefault()
+                Rendering.borderCheck(PossibleCheck)
                 Rendering.borderColors(xy)
                 Rendering.borderCastling()
         try:
@@ -416,54 +413,43 @@ class Actions():
         global Self,Turn
         output = None ; transcript = None
         if CurrentTableDict[newXY] =='':
-                try:
-                    if enPassant == newXY and isinstance(Self,Pawn) and \
-                    newXY in Self.possibleMoves()[3]:
-                        output,transcript = Actions.enPassantTake(enPassant,enPassant_objPos)
-                        return output,transcript,"#FF0000"
-                except NameError:
-                    None
+            if newXY in possibleActionsDict[Self]:
                 if isinstance(Self,King):
-                    if newXY in DangerKingSolve:
-                        output,transcript = Self.move(newXY)
-                    else:
-                        Self = None ; Rendering.borderDefault()
-                        return
+                    output,transcript = Self.move(CurrentTableDict,newXY)
+                elif directAttackers and Self not in Defenders.keys() and newXY in DangerTeamSolve:
+                    output,transcript = Self.move(CurrentTableDict,newXY)      
+                elif not directAttackers and ((Self not in Defenders.keys()) or (Self in Defenders.keys() and newXY in Defenders[Self])):
+                    output,transcript = Self.move(CurrentTableDict,newXY)
                 else:
-                    if directAttackers and Self not in Defenders.keys() and newXY in DangerTeamSolve:
-                        output,transcript = Self.move(newXY)
-                    elif not directAttackers and ((Self not in Defenders.keys()) or (Self in Defenders.keys() and newXY in Defenders[Self])):
-                        output,transcript = Self.move(newXY)
-                    else:
-                        Self = None ; Rendering.borderDefault()
-                        return
-                return output,transcript,"#00BB00"
+                    return False,False,False
+            else:
+                if enPassant == newXY and isinstance(Self,Pawn) and \
+                        newXY in Self.possibleMoves(CurrentTableDict)[3]:
+                    output,transcript = Actions.enPassantTake(enPassant,enPassant_objPos)
+                    return output,transcript,"#FF0000"
+                return False,False,False
+            return output,transcript,"#00BB00"
+        else:
+            return None,None,None
            
     def takingDone(enemyXY):
         global Self,Turn
         output = None ; transcript = None
-        try:
-            if CurrentTableDict[enemyXY].side != Self.side:
-                
+        if CurrentTableDict[enemyXY].side != Self.side:
+            if enemyXY in possibleActionsDict[Self]:
                 if isinstance(Self,King):
-                    if enemyXY in DangerKingSolve:
-                        output,transcript = Self.take(CurrentTableDict[enemyXY])
-                    else:
-                        Self = None ; Rendering.borderDefault()
-                        return 
+                    output,transcript = Self.take(CurrentTableDict,CurrentTableDict[enemyXY])
+                elif directAttackers and Self not in Defenders.keys() and enemyXY in DangerTeamSolve:
+                    output,transcript = Self.take(CurrentTableDict,CurrentTableDict[enemyXY])
+                elif not directAttackers and ((Self not in Defenders.keys()) or (Self in Defenders.keys() and enemyXY in Defenders[Self])):
+                    output,transcript = Self.take(CurrentTableDict,CurrentTableDict[enemyXY])
                 else:
-                    if directAttackers and Self not in Defenders.keys() and enemyXY in DangerTeamSolve:
-                        output,transcript = Self.take(CurrentTableDict[enemyXY])
-                    elif not directAttackers and ((Self not in Defenders.keys()) or (Self in Defenders.keys() and enemyXY in Defenders[Self])):
-                        output,transcript = Self.take(CurrentTableDict[enemyXY])
-                    else:
-                        Self = None ; Rendering.borderDefault()
-                        return  
-                return output,transcript,"#FF0000"
-        except AttributeError:
-            Self = None
-            Rendering.borderDefault()
-            return
+                    return False,False,False
+            else:
+                return False,False,False  
+            return output,transcript,"#FF0000"
+        else:
+            return None,None,None
 
     def enPassantTake(newXY,objXY):
         global Self
@@ -480,19 +466,16 @@ class Actions():
         output = None ; transcript = None
         OwnRook = CurrentTableDict[ownRook]
         if isinstance(Self,King) and isinstance(OwnRook,Rook):
-
-                output,transcript = Self.castling(OwnRook,kW,qW,kB,qB)
-                return output,transcript,"#00AACC"
+            output,transcript = Self.castling(OwnRook,kW,qW,kB,qB)
+            return output,transcript,"#00AACC"
+        else:
+            return None,None,None
 
     def pieceChange(newSelf):
         global Self
         startingTime = time.time()
-        try:
-            if Self.side == CurrentTableDict[newSelf].side:    
-                Actions.verification(newSelf,startingTime)
-        except AttributeError:
-            Self = None
-            Rendering.borderDefault()
+        if Self.side == CurrentTableDict[newSelf].side:
+            Actions.verification(newSelf,startingTime)
 
     def PawnPromotion(choice):  
         global Self,Phase
@@ -510,11 +493,10 @@ class Actions():
             if posInTransc <-1:
                 Rendering.delMovesDone(posInTransc)
             Rendering.printMovesDone("#7700FF",output,None)
-
             Chess.pieces.remove(Self)
             Self = None
-            Actions.End_Turn()
             Phase = 'Game Mechanic'
+            Actions.End_Turn()
 
             actionTime = time.time()
             Rendering.RenderingScreen(CurrentTableDict)
@@ -558,19 +540,22 @@ class Actions():
     def action(act=None):
         global Phase,Self,Turn
         for a in range(4):
-            try:
-                output,transcript,color = Actions.ActionsDone[a](act)
-            except TypeError:
+            output,transcript,color = Actions.ActionsDone[a](act)
+            if output is None:
                 continue
-            if a in range(2):
+            elif output is False:
+                Self=None ; Rendering.borderDefault() ; Rendering.borderCheck(PossibleCheck)
+                return
+            else:
                 if isinstance(Self,Pawn) and (Self.x == 7 or Self.x == 0):
                     canvas.itemconfigure(ExecutionTime_window,state='hidden')
                     Import.PawnPromotionButtons()
                     Actions.ActionResult(output,transcript,color)
                     Phase = 'Pawn Promotion'
                     return
-            Self =None  
-            return output,transcript,color
+                else:
+                    Self=None
+                    return output,transcript,color
     
     def ActionResult(output,transcript,color):
         global Turn,posInTransc
@@ -593,8 +578,8 @@ class Actions():
                 posInTransc = Rewind.ResetPosition() 
 
     def End_Turn():
-        global posInTransc,DangerKingSolve,directAttackers,DangerTeamSolve,Defenders,GameOver,CurrentTableDict
-        PossibleCheck,DangerKingSolve,directAttackers,DangerTeamSolve,Defenders,GameOver,CurrentTableDict = AI.GameOverCheck(Turn)
+        global posInTransc,DangerKingSolve,directAttackers,DangerTeamSolve,Defenders,GameOver,CurrentTableDict,PossibleCheck,possibleActionsDict 
+        PossibleCheck,DangerKingSolve,directAttackers,DangerTeamSolve,Defenders,GameOver,CurrentTableDict,possibleActionsDict = AI.GameOverCheck(Turn)
         Rendering.borderDefault()
         Rendering.borderCheck(PossibleCheck)
         rewindButtonsManage,posInTransc = Rewind.Get_Transcript_and_Position(TranscriptName)
@@ -632,17 +617,16 @@ class GameFlow:
         Rendering.RenderingScreen(CurrentTableDict)
 
     def StandardGame():
-        global Phase,Turn,Self,PossibleCheck,DangerKingSolve,directAttackers,DangerTeamSolve,Defenders,CurrentTableDict,posInTransc
+        global Phase,Turn,Self,PossibleCheck,DangerKingSolve,directAttackers,DangerTeamSolve,Defenders,CurrentTableDict,posInTransc,enPassant,possibleActionsDict 
         startingTime = time.time()
         
-        Turn=1 ; Self=None ; Actions.moveCounter = 0 ; PossibleCheck=None ; Phase = 'Game Mechanic' ; posInTransc =-1
-        DangerKingSolve=[] ; directAttackers=[] ; DangerTeamSolve=[] ; Defenders={} 
+        Turn=1 ; Self=None ; Actions.moveCounter = 0 ; PossibleCheck=None ; Phase = 'Game Mechanic' ; posInTransc =-1 ; enPassant=None
         with open('Game.txt','w') as f:
             f.truncate(0)
         GameFlow.MouseKeyboard(None,None,None,'win')
         GameFlow.StartingPosition()
-        CurrentTableDict = Chess.currentTableDict()
-        
+        PossibleCheck,DangerKingSolve,directAttackers,DangerTeamSolve,Defenders,GameOver,CurrentTableDict,possibleActionsDict = AI.GameOverCheck(Turn)
+       
         canvas.itemconfigure(buttonGM_window,state='hidden')
         canvas.itemconfigure(buttonSG_window,state='hidden')
         Import.RightPanel_SecondScreen()
@@ -661,8 +645,8 @@ class GameFlow:
             else:
                 try:
                     output,transcript,color=Actions.action(xy)
-                except (TypeError):
-                    output =None
+                except TypeError:
+                    output=None
                 if output:
                     Actions.ActionResult(output,transcript,color)
                     Actions.End_Turn()
