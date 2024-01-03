@@ -9,7 +9,6 @@ from knight import Knight
 from pawn import Pawn
 from rook import Rook
 from AI import AI
-from computerAI import ComputerAI
 from transcript import Rewind
 import os
 
