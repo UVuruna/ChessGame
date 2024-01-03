@@ -1,12 +1,12 @@
 from chess import Chess
 from rook import Rook
-import copy
 
 class King(Chess):
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # >>> Creating Object <<<   
     def __init__(self, side) -> None:
         super().__init__(side)
+        self.type = 'Warrior'
         self.x = (0 if self.side == 'w' else 7)
         self.y = 4
     def __str__(self) -> str:
@@ -16,55 +16,26 @@ class King(Chess):
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # >>> Moves - Game Mechanic <<<   
-    def possibleMoves(self,TableDict=None):
-        if TableDict is None:
-            CurrentTableDict = Chess.currentTableDict()
-        else:
-            CurrentTableDict = TableDict
-
-        def polje(content):
-            return CurrentTableDict[content.x,content.y]
-        
-        possibleMoveAttack_List = []
-        possibleTake_List = []
-        possibleDefend_List = []
-        
-        for dir in self.direction:
-            possMove = copy.deepcopy(self)
-            while possMove.granica(): 
-                possMove.incrementation(dir)
-                if possMove.granica() and polje(possMove) == '':
-                    possibleMoveAttack_List.append(possMove.position())
-                    break
-                elif possMove.granica() and possMove.side !=polje(possMove).side:
-                    possibleTake_List.append(possMove.position())
-                    break
-                elif possMove.granica() and possMove.side ==polje(possMove).side:
-                    possibleDefend_List.append(possMove.position())
-                    break
-                else:
-                    break
-                         
-        return possibleMoveAttack_List, possibleTake_List, possibleDefend_List, possibleMoveAttack_List
+    def possibleMoves(self, tableDict):
+         return super().possibleMoves(tableDict)
        
-    def castlingCheck(self):
-        CurrentTableDict = Chess.currentTableDict()
+    def castlingCheck(self,tableDict):
         kingsideWhite, queensideWhite, kingsideBlack, queensideBlack = 0,0,0,0
 
         if self not in Chess.MovesSet:
             for ownRook in Chess.pieces:
                 if isinstance(ownRook,Rook) and (ownRook.side == self.side) and (ownRook not in Chess.MovesSet):
                     if ownRook.name == 'R' and self.side == 'w' and \
-                        CurrentTableDict[(0,5)] == '' and CurrentTableDict[(0,6)] == '':
+                        tableDict[(0,5)] == '' and tableDict[(0,6)] == '':
                         kingsideWhite = 1
-                    elif ownRook.name == 'L' and self.side == 'w' and CurrentTableDict[(0,1)] == '' and \
-                        CurrentTableDict[(0,2)] == '' and CurrentTableDict[(0,3)] == '':
+                    elif ownRook.name == 'L' and self.side == 'w' and tableDict[(0,1)] == '' and \
+                        tableDict[(0,2)] == '' and tableDict[(0,3)] == '':
                         queensideWhite = 1   
                     elif ownRook.name == 'R' and self.side == 'b' and \
-                        CurrentTableDict[(7,5)] == '' and CurrentTableDict[(7,6)] == '':
+                        tableDict[(7,5)] == '' and tableDict[(7,6)] == '':
                         kingsideBlack = 1
-                    elif ownRook.name == 'L' and self.side == 'b' and CurrentTableDict[(7,1)] == '' and \
-                        CurrentTableDict[(7,2)] == '' and CurrentTableDict[(7,3)] == '':
+                    elif ownRook.name == 'L' and self.side == 'b' and tableDict[(7,1)] == '' and \
+                        tableDict[(7,2)] == '' and tableDict[(7,3)] == '':
                         queensideBlack = 1
             return kingsideWhite, queensideWhite, kingsideBlack, queensideBlack
     
