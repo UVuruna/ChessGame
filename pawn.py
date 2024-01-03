@@ -7,6 +7,7 @@ class Pawn(Chess):
     Name = ['L1','L2','L3','CL','CR','R3','R2','R1']  
     def __init__(self, side, name=None) -> None:
         super().__init__(side)
+        self.type = 'Warrior'
         self.name = name
         self.x = (1 if self.side == 'w' else 6)
         self.y = Pawn.Name.index(self.name)  if name else 0
@@ -19,14 +20,10 @@ class Pawn(Chess):
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # >>> Moves - Game Mechanic <<<   
-    def possibleMoves(self,TableDict=None):
-        if TableDict is None:
-            CurrentTableDict = Chess.currentTableDict()
-        else:
-            CurrentTableDict = TableDict
-
+    def possibleMoves(self,TableDict):
+        
         def polje(content):
-            return CurrentTableDict[content.x,content.y]
+            return TableDict[content.x,content.y]
         
         # Za razliku od ostalih PION ima razlicite PETLJE za JEDENJE i KRETANJE, jer to radi u razlicitim smerovima
         # Takodje kretanje zavisi od strane na kojoj se nalazi za razliku od ostalih FIGURA, zato postoji ovaj IF-ELSE
@@ -49,11 +46,11 @@ class Pawn(Chess):
 
         for dir in self.directionMove:
             possMove = copy.deepcopy(self)
-            while possMove.granica(): 
+            while possMove.insideBorder(): 
                 possMove.incrementation(dir)
                 if tries == 0:
                     break
-                elif possMove.granica() and polje(possMove) =='':
+                elif possMove.insideBorder() and polje(possMove) =='':
                     possibleMove_List.append(possMove.position())
                     tries -= 1
                 else:
@@ -61,9 +58,9 @@ class Pawn(Chess):
 
         for dir in self.directionAttack:
             possMove = copy.deepcopy(self)
-            while possMove.granica():
+            while possMove.insideBorder():
                 possMove.incrementation(dir)
-                if possMove.granica():
+                if possMove.insideBorder():
                     if polje(possMove) !='' and possMove.side !=polje(possMove).side:
                         possibleTake_List.append(possMove.position())
                         break
