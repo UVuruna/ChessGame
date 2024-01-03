@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-# Otvaranje Aplikacije = 1,014 Radnji
-# New Game
+import copy
 
 class Chess(ABC):
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -32,8 +31,8 @@ class Chess(ABC):
             for y in range(8):
                 emptyTableDict[x,y] = ''
         return emptyTableDict
-    
-    EmptyTableDict = emptyTableDict()   
+    EmptyTableDict = emptyTableDict()
+       
     def notationTableDict():
         def notationTable():
             rowX = [chr(i) for i in range(ord('A'),ord('I'))]
@@ -103,8 +102,8 @@ class Chess(ABC):
     #arrow = '➔'
     #sword = '🗙'
     # Setter #1
-    def move(self,square):
-        PossibleLines = self.possibleMoves()[0]
+    def move(self,tableDict,square):
+        PossibleLines = self.possibleMoves(tableDict)[0]
         if square in PossibleLines:
             position = Chess.NotationTableDict[self.position()]
             self.x,self.y = square
@@ -113,8 +112,8 @@ class Chess(ABC):
             moveOutput = f"{str(self).ljust(8)}{(position.ljust(5)+'➔').ljust(8)}{Chess.NotationTableDict[square]}"
             return moveOutput,transcript
     # Setter #2 
-    def take(self,obj,enPassant=None):
-        PossibleTake = self.possibleMoves()[1]
+    def take(self,tableDict,obj):
+        PossibleTake = self.possibleMoves(tableDict)[1]
         if obj.position() in PossibleTake:
             position = Chess.NotationTableDict[self.position()]
             self.x,self.y = obj.position()
@@ -125,10 +124,36 @@ class Chess(ABC):
             Chess.pieces.remove(obj)
             return moveOutput,transcript 
     
-    @abstractmethod
-    def possibleMoves():
-        pass
-    # Parameters For Possible Moves
-    def granica(self):
-        return (self.x <= 7 and self.x >= 0) and (self.y <= 7 and self.y >= 0)
+    #@countExecutionMethod
+    def possibleMoves(self,tableDict):
 
+        def polje(Self):
+            return tableDict[Self.x,Self.y]
+        
+        possibleMoveAttack_List = []
+        possibleTake_List = []
+        possibleDefend_List = []
+        
+        for dir in self.direction:
+            possMove = copy.deepcopy(self)
+            while possMove.insideBorder(): 
+                possMove.incrementation(dir)
+                if possMove.insideBorder() and polje(possMove) == '':
+                    possibleMoveAttack_List.append(possMove.position())
+                    if possMove.type == 'Archer':
+                        None
+                    else:
+                        break
+                elif possMove.insideBorder() and possMove.side !=polje(possMove).side:
+                    possibleTake_List.append(possMove.position())
+                    break
+                elif possMove.insideBorder() and possMove.side ==polje(possMove).side:
+                    possibleDefend_List.append(possMove.position())
+                    break
+                else:
+                    break
+                         
+        return possibleMoveAttack_List, possibleTake_List, possibleDefend_List, possibleMoveAttack_List
+    
+    def insideBorder(self):
+        return (self.x <= 7 and self.x >= 0) and (self.y <= 7 and self.y >= 0)
